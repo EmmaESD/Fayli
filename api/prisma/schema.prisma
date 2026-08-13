@@ -1,0 +1,173 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Roles {
+  ADMIN
+  MEMBER
+}
+
+enum ParticipantStatus {
+  ATTENDING
+  DECLINED
+  MAYBE
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  phone     String?
+  password  String
+  firstName String
+  lastName  String
+  profilImg String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  roles               UserRole[]
+  posts               Post[]
+  comments            Comment[]
+  likes               Like[]
+  uploadedFiles       UploadFiles[]
+  createdEvents       Event[]            @relation("EventCreatedBy")
+  eventParticipations EventParticipant[]
+}
+
+model Family {
+  id        Int      @id @default(autoincrement())
+  name      String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  userRoles   UserRole[]
+  posts       Post[]
+  uploadFiles UploadFiles[]
+  events      Event[]
+}
+
+model UserRole {
+  id       Int    @id @default(autoincrement())
+  userRole Roles?
+  userId   Int?
+  familyId Int?
+
+  user   User?   @relation(fields: [userId], references: [id])
+  family Family? @relation(fields: [familyId], references: [id])
+}
+
+model Post {
+  id        Int       @id @default(autoincrement())
+  title     String
+  content   String?
+  img       String?
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime? @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+  userId    Int?      @map("user_id")
+  familyId  Int?      @map("family_id")
+
+  user     User?     @relation(fields: [userId], references: [id])
+  family   Family?   @relation(fields: [familyId], references: [id])
+  comments Comment[]
+  likes    Like[]
+
+  @@index([familyId])
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model Comment {
+  id        Int       @id @default(autoincrement())
+  content   String
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime? @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+  authorId  Int?      @map("author_id")
+  postId    Int?      @map("post_id")
+
+  author User?  @relation(fields: [authorId], references: [id])
+  post   Post?  @relation(fields: [postId], references: [id])
+  likes  Like[]
+
+  @@index([postId])
+  @@index([authorId])
+  @@index([createdAt])
+}
+
+model Like {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  postId    Int?     @map("post_id")
+  commentId Int?     @map("comment_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user    User     @relation(fields: [userId], references: [id])
+  post    Post?    @relation(fields: [postId], references: [id])
+  comment Comment? @relation(fields: [commentId], references: [id])
+
+  @@unique([userId, postId])
+  @@unique([userId, commentId])
+  @@index([postId])
+  @@index([commentId])
+}
+
+model UploadFiles {
+  id          Int       @id @default(autoincrement())
+  url         String
+  title       String?
+  description String?
+  uploadedAt  DateTime  @default(now()) @map("uploaded_at")
+  deletedAt   DateTime? @map("deleted_at")
+  uploadedBy  Int?      @map("uploaded_by")
+  familyId    Int?      @map("family_id")
+
+  uploader User?   @relation(fields: [uploadedBy], references: [id])
+  family   Family? @relation(fields: [familyId], references: [id])
+
+  @@index([familyId])
+  @@index([uploadedBy])
+  @@index([uploadedAt])
+}
+
+model Event {
+  id          Int       @id @default(autoincrement())
+  title       String
+  description String?
+  startDate   DateTime  @map("start_date")
+  endDate     DateTime? @map("end_date")
+  location    String?
+  createdBy   Int?      @map("created_by")
+  familyId    Int?      @map("family_id")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime? @map("updated_at")
+  deletedAt   DateTime? @map("deleted_at")
+
+  creator      User?              @relation("EventCreatedBy", fields: [createdBy], references: [id])
+  family       Family?            @relation(fields: [familyId], references: [id])
+  participants EventParticipant[]
+
+  @@index([familyId])
+  @@index([createdBy])
+  @@index([startDate])
+}
+
+model EventParticipant {
+  id          Int                @id @default(autoincrement())
+  eventId     Int?               @map("event_id")
+  userId      Int?               @map("user_id")
+  status      ParticipantStatus? @default(MAYBE)
+  respondedAt DateTime?          @map("responded_at")
+
+  event Event? @relation(fields: [eventId], references: [id])
+  user  User?  @relation(fields: [userId], references: [id])
+
+  @@unique([eventId, userId])
+  @@index([eventId])
+  @@index([userId])
+}
